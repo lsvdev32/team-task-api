@@ -33,7 +33,13 @@ const Task = sequelize.define(
     },
     userId: {
       type: DataTypes.INTEGER,
-      allowNull: false
+      allowNull: false,
+      references: {
+        model: "users",
+        key: "id"
+      },
+      onUpdate: "CASCADE",
+      onDelete: "CASCADE"
     }
   },
   {
