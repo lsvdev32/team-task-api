@@ -12,16 +12,26 @@ services:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   api:
-    build: .
+    build: ./backend
     container_name: teamtasks_api
     restart: always
-    env_file: .env
+    env_file: ./backend/.env
     ports:
       - "4000:4000"
     depends_on:
       - mysql
+
+  frontend:
+    build: ./frontend
+    container_name: teamtasks_frontend
+    restart: always
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
 
 volumes:
   mysql_data:
