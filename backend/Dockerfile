@@ -1,13 +1,10 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
-# Create app directory
 WORKDIR /usr/src/app
 
-# Install dependencies
 COPY package*.json ./
-RUN npm install --production
+RUN npm install
 
-# Bundle app source
 COPY . .
 
 EXPOSE 4000
