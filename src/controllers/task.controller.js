@@ -1,16 +1,47 @@
+const { Op } = require("sequelize");
 const { Task, User } = require("../models");
+
 const getAllTasks = async (req, res) => {
   try {
+    const { status, priority, userId, search } = req.query;
+    const where = {};
+
+    if (status) {
+      where.status = status;
+    }
+    if (priority) {
+      where.priority = priority;
+    }
+    if (userId) {
+      where.userId = userId;
+    }
+    if (search) {
+      where[Op.or] = [
+        {
+          title: {
+            [Op.like]: `%${search}%`
+          }
+        },
+        {
+          description: {
+            [Op.like]: `%${search}%`
+          }
+        }
+      ];
+    }
+
     const tasks = await Task.findAll({
+      where,
       include: [
         {
           model: User,
           as: "user",
           attributes: ["id", "name", "email"]
         }
-         ],
+      ],
       order: [["id", "ASC"]]
     });
+
     res.status(200).json(tasks);
   } catch (error) {
     res.status(500).json({
@@ -19,6 +50,7 @@ const getAllTasks = async (req, res) => {
     });
   }
 };
+
 const getTaskById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -31,11 +63,13 @@ const getTaskById = async (req, res) => {
         }
       ]
     });
+
     if (!task) {
       return res.status(404).json({
         message: "Tarea no encontrada"
       });
     }
+
     res.status(200).json(task);
   } catch (error) {
     res.status(500).json({
@@ -44,20 +78,17 @@ const getTaskById = async (req, res) => {
     });
   }
 };
+
 const createTask = async (req, res) => {
   try {
     const { title, description, status, priority, userId } = req.body;
+
     if (!title || !userId) {
       return res.status(400).json({
         message: "El título y el userId son obligatorios"
       });
     }
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({
-        message: "El usuario asociado no existe"
-      });
-    }
+
     const newTask = await Task.create({
       title,
       description,
@@ -65,6 +96,7 @@ const createTask = async (req, res) => {
       priority,
       userId
     });
+
     const createdTask = await Task.findByPk(newTask.id, {
       include: [
         {
@@ -74,6 +106,7 @@ const createTask = async (req, res) => {
         }
       ]
     });
+
     res.status(201).json({
       message: "Tarea creada correctamente",
       task: createdTask
@@ -85,24 +118,19 @@ const createTask = async (req, res) => {
     });
   }
 };
+
 const updateTask = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, status, priority, userId } = req.body;
+
     const task = await Task.findByPk(id);
     if (!task) {
       return res.status(404).json({
         message: "Tarea no encontrada"
       });
     }
-    if (userId) {
-      const user = await User.findByPk(userId);
-      if (!user) {
-        return res.status(404).json({
-          message: "El usuario asociado no existe"
-        });
-      }
-    }
+
     await task.update({
       title: title ?? task.title,
       description: description ?? task.description,
@@ -110,6 +138,7 @@ const updateTask = async (req, res) => {
       priority: priority ?? task.priority,
       userId: userId ?? task.userId
     });
+
     const updatedTask = await Task.findByPk(task.id, {
       include: [
         {
@@ -119,6 +148,7 @@ const updateTask = async (req, res) => {
         }
       ]
     });
+
     res.status(200).json({
       message: "Tarea actualizada correctamente",
       task: updatedTask
@@ -130,16 +160,20 @@ const updateTask = async (req, res) => {
     });
   }
 };
+
 const deleteTask = async (req, res) => {
   try {
     const { id } = req.params;
     const task = await Task.findByPk(id);
+
     if (!task) {
       return res.status(404).json({
         message: "Tarea no encontrada"
       });
     }
+
     await task.destroy();
+
     res.status(200).json({
       message: "Tarea eliminada correctamente"
     });
@@ -150,6 +184,7 @@ const deleteTask = async (req, res) => {
     });
   }
 };
+
 module.exports = {
   getAllTasks,
   getTaskById,
