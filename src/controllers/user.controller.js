@@ -1,7 +1,6 @@
 const { User } = require("../models");
 const bcrypt = require("bcrypt");
 
-const hashedPassword = await bcrypt.hash(password, 10);
 
 const sanitizeUser = (user) => {
   const { password, ...userWithoutPassword } = user.toJSON();
@@ -33,39 +32,52 @@ const getUserById = async (req, res, next) => {
 const createUser = async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
+
     if (!name || !email || !password) {
       return res.status(400).json({
         message: "Nombre, email y contraseña son obligatorios"
       });
     }
+
     if (typeof name !== "string" || name.trim().length < 2) {
       return res.status(400).json({
         message: "El nombre debe tener minimo 2 caracteres"
       });
     }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (typeof email !== "string" || !emailRegex.test(email)) {
       return res.status(400).json({
         message: "El email no tiene un formato valido"
       });
     }
+
     if (typeof password !== "string" || password.length < 6) {
       return res.status(400).json({
         message: "La contraseña debe tener minimo 6 caracteres"
       });
     }
-    const existingUser = await User.findOne({ where: { email } });
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const existingUser = await User.findOne({
+      where: { email: normalizedEmail }
+    });
 
     if (existingUser) {
       return res.status(409).json({
         message: "Ya existe un usuario con ese email"
       });
     }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const newUser = await User.create({
       name: name.trim(),
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       password: hashedPassword
     });
+
     return res.status(201).json({
       message: "Usuario creado correctamente",
       user: sanitizeUser(newUser)
@@ -78,13 +90,21 @@ const updateUser = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, email, password } = req.body;
+
     if (!/^\d+$/.test(id)) {
-      return res.status(400).json({ message: "El id del usuario debe ser numerico" });
+      return res.status(400).json({
+        message: "El id del usuario debe ser numerico"
+      });
     }
+
     const user = await User.findByPk(id);
+
     if (!user) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
+      return res.status(404).json({
+        message: "Usuario no encontrado"
+      });
     }
+
     if (name !== undefined) {
       if (typeof name !== "string" || name.trim().length < 2) {
         return res.status(400).json({
@@ -92,17 +112,25 @@ const updateUser = async (req, res, next) => {
         });
       }
     }
+
+    let normalizedEmail = user.email;
+
     if (email !== undefined) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
       if (typeof email !== "string" || !emailRegex.test(email)) {
         return res.status(400).json({
           message: "El email no tiene un formato valido"
         });
       }
-      if (email.trim().toLowerCase() !== user.email) {
+
+      normalizedEmail = email.trim().toLowerCase();
+
+      if (normalizedEmail !== user.email) {
         const existingUser = await User.findOne({
-          where: { email: email.trim().toLowerCase() }
+          where: { email: normalizedEmail }
         });
+
         if (existingUser) {
           return res.status(409).json({
             message: "Ya existe un usuario con ese email"
@@ -110,21 +138,25 @@ const updateUser = async (req, res, next) => {
         }
       }
     }
+
+    let hashedPassword = user.password;
+
     if (password !== undefined) {
       if (typeof password !== "string" || password.length < 6) {
         return res.status(400).json({
           message: "La contraseña debe tener minimo 6 caracteres"
         });
       }
+
+      hashedPassword = await bcrypt.hash(password, 10);
     }
+
     await user.update({
       name: name !== undefined ? name.trim() : user.name,
-      email: email !== undefined ? email.trim().toLowerCase() : user.email,
-      password:
-        password !== undefined
-          ? await bcrypt.hash(password, 10)
-          : user.password
+      email: normalizedEmail,
+      password: hashedPassword
     });
+
     return res.status(200).json({
       message: "Usuario actualizado correctamente",
       user: sanitizeUser(user)
