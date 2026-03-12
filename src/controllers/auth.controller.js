@@ -1,63 +1,52 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { User } = require("../models");
-
-const login = async (req, res) => {
+const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-
     if (!email || !password) {
       return res.status(400).json({
         message: "Email y contraseña son obligatorios"
       });
     }
-
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (typeof email !== "string" || !emailRegex.test(email)) {
+      return res.status(400).json({
+        message: "El email no tiene un formato valido"
+      });
+    }
+    if (typeof password !== "string" || password.length < 6) {
+      return res.status(400).json({
+        message: "La contraseña debe tener minimo 6 caracteres"
+      });
+    }
     const user = await User.findOne({
-      where: { email }
+      where: { email: email.trim().toLowerCase() }
     });
-
     if (!user) {
       return res.status(401).json({
-        message: "Credenciales inválidas"
+        message: "Credenciales invalidas"
       });
     }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordValid) {
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
       return res.status(401).json({
-        message: "Credenciales inválidas"
+        message: "Credenciales invalidas"
       });
     }
-
     const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email
-      },
+      { id: user.id, email: user.email },
       process.env.JWT_SECRET,
-      {
-        expiresIn: "1h"
-      }
+      { expiresIn: "1h" }
     );
-
-    res.status(200).json({
-      message: "Inicio de sesión exitoso",
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email
-      }
+    return res.status(200).json({
+      message: "Inicio de sesion exitoso",
+      token
     });
   } catch (error) {
-    res.status(500).json({
-      message: "Error al iniciar sesión",
-      error: error.message
-    });
+    next(error);
   }
 };
-
 module.exports = {
   login
 };
