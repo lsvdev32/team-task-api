@@ -1,4 +1,8 @@
 const { User } = require("../models");
+const bcrypt = require("bcrypt");
+
+const hashedPassword = await bcrypt.hash(password, 10);
+
 const sanitizeUser = (user) => {
   const { password, ...userWithoutPassword } = user.toJSON();
   return userWithoutPassword;
@@ -60,7 +64,7 @@ const createUser = async (req, res, next) => {
     const newUser = await User.create({
       name: name.trim(),
       email: email.trim().toLowerCase(),
-      password
+      password: hashedPassword
     });
     return res.status(201).json({
       message: "Usuario creado correctamente",
@@ -112,11 +116,14 @@ const updateUser = async (req, res, next) => {
           message: "La contraseña debe tener minimo 6 caracteres"
         });
       }
-       }
+    }
     await user.update({
       name: name !== undefined ? name.trim() : user.name,
       email: email !== undefined ? email.trim().toLowerCase() : user.email,
-      password: password !== undefined ? password : user.password
+      password:
+        password !== undefined
+          ? await bcrypt.hash(password, 10)
+          : user.password
     });
     return res.status(200).json({
       message: "Usuario actualizado correctamente",
