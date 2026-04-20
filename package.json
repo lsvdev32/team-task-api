@@ -1,0 +1,7 @@
+{
+  "name": "team-task-api-workspace",
+  "private": true,
+  "scripts": {
+    "eb:prepare": "node scripts/build-eb-package.mjs"
+  }
+}
